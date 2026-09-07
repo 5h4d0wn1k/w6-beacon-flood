@@ -84,15 +84,43 @@ This project is provided for **educational and authorized security testing purpo
 
 ### Prohibited Use
 - Intercepting communications on networks you do not own
-- Attacking infrastructure without authorization
-- Any activity that violates applicable laws or regulations
+- Transmitting fake beacons on any real channel outside a licensed, authorized, shield-attenuated lab
+- Any activity that violates applicable laws or regulations — this build cannot emit radio, period
 - Commercial use without proper licensing
 
-### No Warranty
-This software is provided "AS IS" without warranty of any kind. The author is not responsible for any misuse or damage caused by this software.
+### Regulatory Framework
+- **Federal Communications Act (47 U.S.C. § 333)**: Willful interference with authorized radio communications is prohibited.
+- **47 CFR Part 15**: Unauthorized intentional radiators are regulated; this tool is byte-level only and emits nothing.
+- **CFAA (18 U.S.C. § 1030)**: Injecting traffic or impersonating access points on networks you don't own is a federal crime.
+- **ECPA/Wiretap Act**: Monitoring or interacting with wireless networks without authorization may violate interception laws.
 
-### Responsible Disclosure
-If you discover vulnerabilities using this tool, follow responsible disclosure practices:
-1. Report to the vendor/owner privately
-2. Allow reasonable time for remediation
-3. Do not exploit beyond proof of concept
+## Live Lab Test Plan
+
+Offline (this repo, no radio):
+1. `python3 firmware/beacon_flood.py` — build 16 distinct lab BSSIDs with `lab-*` SSIDs and run
+   the flood detector; verdict `flood-or-confusion`, exit 0.
+2. `python3 firmware/beacon_flood.py --gen-fixture reports/flood.pcap --pcap reports/flood.pcap
+   --json reports/w6.json` — fixture round-trip + report (exit 0).
+3. `python3 firmware/beacon_flood.py --ssids corp-wifi` — REFUSED (non-lab SSID, exit 2).
+4. `python3 -m unittest discover -s tests` — byte-exact FCS/build/parse confirmed (exit 0).
+
+Authorized lab (only with written scope + shield + authorized channel):
+5. Re-transmit the exact fixture bytes from an authorized SDR/module in a shielded enclosure and
+   confirm the flood detector flags >= 9 unique BSSIDs playing the same `lab-*` SSID.
+6. `green = permitted`: generating/poking pcap fixtures offline or, with written lab scope, in a
+   shielded enclosure; never on networks you don't own.
+
+## Metrics
+
+- Beacon builder: distinct fake BSSIDs on lab OUI 00:11:22 only; FCS appended and verified
+- IE/SSID: `lab-*` enforced at CLI (non-lab SSID -> exit 2); beacon interval 100; seq monotonic
+- Detector: unique-BSSID count vs threshold (default 8), SSID-confusion cardinality (>=2 ssids/AP)
+- pcap classic (linktype 105) fixture generate + analyze; captures/ and reports/ gitignored
+- Offline: all 802.11 frames synthesized as bytes via frame_core; no radio, no wall-clock data
+
+- Test suite: `python3 -m unittest discover -s tests`
+- Reports: `reports/` (gitignored)
+
+## License
+
+MIT
